@@ -931,7 +931,7 @@ final class MenuBarController: NSObject {
                 lines.append("通知样式：\(style)")
                 lines.append("当前通道：\(Notifier.shared.channelDescription)")
                 lines.append("")
-                lines.append("提示音=已关闭 ❌ 时：系统设置 → 通知 → DSH 刘海提示 → 打开「播放提示音」")
+                lines.append("提示音=已关闭 ❌ 时：系统设置 → 通知 → DSH 状态栏轻提醒 → 打开「播放提示音」")
 
                 let text = lines.joined(separator: "\n")
                 dlog("通知诊断:\n\(text)")
@@ -1006,7 +1006,7 @@ EventMonitor.shared.refreshSessions()
 if CommandLine.arguments.contains("--test-notify") {
     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
         Notifier.shared.notify(id: "boot-test",
-                               title: "✅ DSH 刘海提示已启动",
+                               title: "✅ DSH 状态栏轻提醒已启动",
                                body: "正在监听 DSH 事件流，出现动作/完成/待办会实时提醒。",
                                sound: true)
     }

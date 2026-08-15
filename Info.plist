@@ -13,7 +13,7 @@
 	<key>CFBundleName</key>
 	<string>DSHNotch</string>
 	<key>CFBundleDisplayName</key>
-	<string>DSH 刘海提示</string>
+	<string>DSH 状态栏轻提醒</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon.icns</string>
 	<key>CFBundlePackageType</key>

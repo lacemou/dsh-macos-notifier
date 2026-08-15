@@ -1,8 +1,8 @@
-# DSH Notch Notifier（DSH 刘海提示）
+# DSH Notch Notifier（DSH 状态栏轻提醒）
 
 > 🌐 [English](README.en.md) | 中文
 
-在 macOS **菜单栏（刘海区域）**常驻一个图标的小程序：当网页版 DeepSeek Harness（DSH）**执行动作、完成任务、需要你批准/回答、或出错**时，实时弹出系统通知。
+在 macOS **菜单栏**常驻一个图标的小程序：当网页版 DeepSeek Harness（DSH）**执行动作、完成任务、需要你批准/回答、或出错**时，实时弹出系统通知。
 
 - **不依赖浏览器**：直连 DSH 本地服务的 WebSocket 事件流，浏览器开着关着都行
 - **原生 App**：Swift + AppKit 单文件，`swiftc` 编译，无第三方依赖
