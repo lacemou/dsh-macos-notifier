@@ -200,7 +200,13 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
         connect()
         refreshTimer?.invalidate()
         refreshTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: true) { [weak self] _ in
-            self?.refreshSessions()
+            guard let self else { return }
+            self.refreshSessions()
+            // 自动重连兜底：即使 socket 事件偶发丢失（比如进程被杀时没有触发 close 回调），
+            // 也保证每 20 秒至少尝试一次重连，"自动重连中"是真实行为而非文案。
+            if !self.connected && self.reconnectTimer == nil {
+                self.connect()
+            }
         }
     }
 
@@ -611,20 +617,21 @@ final class DSHLauncher {
         }.resume()
     }
 
-    /// 确保 DSH 运行：已运行 → 直接成功；未运行 → 后台启动并等待就绪
+    /// 确保 DSH 运行：已运行 → 直接成功；未运行 → 后台启动并等待就绪。
+    /// 同步先进入「启动中」状态，让菜单立刻从「▶ 启动」切换为「⏳ 正在启动」，
+    /// 而不是等异步探测完成才变化（避免用户觉得点了没反应）。
     func start(completion: @escaping (Bool) -> Void) {
+        guard state != .starting else { completion(false); return }
+        state = .starting
+        pendingCompletion = completion
+        onStateChange?(.starting)
         probe { [weak self] running in
             guard let self else { return }
             if running {
-                self.state = .running
-                self.onStateChange?(.running)
-                completion(true)
+                // 已运行（可能是外部实例），直接收敛为"运行中"
+                self.settle(true)
                 return
             }
-            guard self.state != .starting else { completion(false); return }
-            self.state = .starting
-            self.pendingCompletion = completion
-            self.onStateChange?(.starting)
             self.spawn()
             self.pollUntilReady(deadline: Date().addingTimeInterval(120)) { [weak self] ok in
                 self?.settle(ok)
@@ -796,9 +803,22 @@ final class MenuBarController: NSObject {
                 menu.addItem(hint)
             }
         }
-        // 由本 App 拉起的 DSH 才显示「停止 DSH」（外部启动的不归 App 管）
-        if DSHLauncher.shared.isOwned {
+        // 由本 App 拉起的 DSH 才显示「停止 DSH」；启动过程中不显示（避免"启动/停止"同时出现造成困惑）
+        if DSHLauncher.shared.isOwned && DSHLauncher.shared.state != .starting {
             addActionItem(menu, "⏹ 停止 DSH", #selector(stopDSH), "")
+        }
+        // 已连接但不是 App 拉起的 → 存在外部实例（如终端手动启动）：
+        // 解释"为什么点了停止 DSH 它还在跑"——外部实例不归 App 管
+        if status != .disconnected && !DSHLauncher.shared.isOwned {
+            let ext = NSMenuItem(title: "  ℹ️ 当前 DSH 由外部启动（如终端），App 不负责停止", action: nil, keyEquivalent: "")
+            ext.isEnabled = false
+            ext.attributedTitle = NSAttributedString(
+                string: "  ℹ️ 当前 DSH 由外部启动（如终端），App 不负责停止",
+                attributes: [
+                    .font: NSFont.menuFont(ofSize: 11),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ])
+            menu.addItem(ext)
         }
         addActionItem(menu, "测试通知", #selector(testNotify), "t")
         addActionItem(menu, "🔍 通知诊断", #selector(diagnoseNotifications), "d")

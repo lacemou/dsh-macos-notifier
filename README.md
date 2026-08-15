@@ -94,7 +94,7 @@ open dist/DSHNotch.app
 
 首次启动会请求「通知权限」：点**允许**后通知横幅走系统通知（可替换重复通知）；不授权也能用（自动降级为 osascript 横幅）。**提示音与权限无关**——由 App 直接播放，见「效果」一节。
 
-**直接启动 DSH（免终端）**：DSH 未运行时，菜单栏图标 →「▶ 启动 DSH」，App 会在后台用 `npx @deepseek-ai/dsh web` 拉起 DSH 服务，就绪后自动打开网页；DSH 已运行时该项显示为「打开 DSH 网页」。由 App 拉起的 DSH，菜单会多出「⏹ 停止 DSH」可随时停止（外部启动的不显示）。启动日志在 `~/Library/Logs/DSHNotch-dsh.log`。
+**直接启动 DSH（免终端）**：DSH 未运行时，菜单栏图标 →「▶ 启动 DSH」，App 会在后台用 `npx @deepseek-ai/dsh web` 拉起 DSH 服务，就绪后自动打开网页；DSH 已运行时该项显示为「打开 DSH 网页」。由 App 拉起的 DSH，菜单会多出「⏹ 停止 DSH」可随时停止（外部启动的不显示；若已连接但菜单提示"当前 DSH 由外部启动"，说明是终端等外部实例在跑，App 无权停止它）。启动日志在 `~/Library/Logs/DSHNotch-dsh.log`。
 
 > ⚠️ 前提：请先在终端成功运行过一次 `npx @deepseek-ai/dsh web`（初始化 npx 缓存与配置），之后才能用本功能免终端启动。
 
