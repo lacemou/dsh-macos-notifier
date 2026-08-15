@@ -204,7 +204,7 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
             self.refreshSessions()
             // 自动重连兜底：即使 socket 事件偶发丢失（比如进程被杀时没有触发 close 回调），
             // 也保证每 20 秒至少尝试一次重连，"自动重连中"是真实行为而非文案。
-            if !self.connected && self.reconnectTimer == nil {
+            if !self.connected && self.reconnectTimer == nil && !self.autoReconnectPaused {
                 self.connect()
             }
         }
@@ -221,8 +221,27 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
     }
 
     func reconnect() {
+        autoReconnectPaused = false
         stop()
         start()
+    }
+
+    /// 手动「停止 DSH」后暂停自动重连：尊重用户的停止意图，不再空转重试
+    private(set) var autoReconnectPaused = false
+
+    func pauseAutoReconnect() {
+        autoReconnectPaused = true
+        reconnectTimer?.invalidate(); reconnectTimer = nil
+        muxTask?.cancel(with: .goingAway, reason: nil)
+        hostTask?.cancel(with: .goingAway, reason: nil)
+        muxTask = nil; hostTask = nil
+        connected = false
+        onStatusChange?(.disconnected)
+    }
+
+    func resumeAutoReconnect() {
+        autoReconnectPaused = false
+        connect()
     }
 
     private func connect() {
@@ -246,6 +265,7 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
     private func scheduleReconnect() {
         connected = false
         onStatusChange?(.disconnected)
+        guard !autoReconnectPaused else { return }
         guard reconnectTimer == nil else { return }
         reconnectTimer = Timer.scheduledTimer(withTimeInterval: backoff, repeats: false) { [weak self] _ in
             self?.backoff = min((self?.backoff ?? 2) * 2, 30)
@@ -803,7 +823,9 @@ final class MenuBarController: NSObject {
         let statusText: String
         switch status {
         case .disconnected:
-            statusText = "⚪ 未连接 DSH（自动重连中…）"
+            statusText = EventMonitor.shared.autoReconnectPaused
+                ? "⚪ 未连接 DSH（已暂停自动重连，点「重新连接」恢复）"
+                : "⚪ 未连接 DSH（自动重连中…）"
         case .idle:
             statusText = "🟢 已连接 · 空闲 · \(EventMonitor.shared.sessionCount) 个会话"
         case .running:
@@ -943,7 +965,10 @@ final class MenuBarController: NSObject {
     // MARK: 动作
 
     /// 启动并打开 DSH：未运行则后台拉起（npx），就绪后打开网页
-    @objc private func launchAndOpen() {        DSHLauncher.shared.start { [weak self] ok in
+    @objc private func launchAndOpen() {
+        // 手动启动 = 恢复自动重连（解除「停止 DSH」后的暂停）
+        EventMonitor.shared.resumeAutoReconnect()
+        DSHLauncher.shared.start { [weak self] ok in
             guard let self else { return }
             if ok {
                 if let url = Settings.shared.webURL {
@@ -968,11 +993,12 @@ final class MenuBarController: NSObject {
         alert.runModal()
     }
 
-    /// 停止 DSH：App 拉起的直接停；外部实例先确认再按端口停
+    /// 停止 DSH：App 拉起的直接停；外部实例先确认再按端口停。停止后暂停自动重连。
     @objc private func stopDSH() {
         let launcher = DSHLauncher.shared
         if launcher.isOwned {
             launcher.stopOwned()
+            EventMonitor.shared.pauseAutoReconnect()
             rebuildMenu()
             return
         }
@@ -994,7 +1020,8 @@ final class MenuBarController: NSObject {
         alert.addButton(withTitle: "取消")
         if alert.runModal() == .alertFirstButtonReturn {
             launcher.killPid(pid)
-            dlog("已请求停止外部 DSH pid=\(pid)")
+            EventMonitor.shared.pauseAutoReconnect()
+            dlog("已请求停止外部 DSH pid=\(pid)，自动重连已暂停")
             rebuildMenu()
         }
     }
