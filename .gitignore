@@ -1,0 +1,10 @@
+# 构建产物
+dist/
+build/
+icon/build/
+
+# macOS
+.DS_Store
+
+# 图标设计工作文件（非源码；渲染器在 icon/render_icons.swift）
+icon/preview/
