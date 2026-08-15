@@ -48,7 +48,16 @@ The app consumes `tool/call`, `turn/end` (with `reason.kind`), `approval/request
 - Xcode Command Line Tools (`xcode-select --install`)
 - DSH (already used via `npx @deepseek-ai/dsh web`)
 
-## Build & run
+## Install from Releases (recommended for end users)
+
+1. Download `DSHNotch-v0.1.0-macos-arm64.zip` from the [Releases page](https://github.com/lacemou/dsh-macos-notifier/releases)
+2. Unzip it, drag `DSHNotch.app` into Applications (or run it directly)
+3. First launch may show "cannot verify the developer": **right-click (or Control-click) the app → Open → Open**
+4. Or run once in the terminal: `xattr -d com.apple.quarantine "/Applications/DSHNotch.app"`
+
+> ⚠️ This build supports **Apple Silicon (M-series) only**. Intel Mac users should build from source (below).
+
+## Build & run (developers)
 
 ```bash
 cd dsh-notch-notifier

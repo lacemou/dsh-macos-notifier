@@ -73,7 +73,16 @@ flowchart LR
     B -->|NSSound 直接播放| D[提示音 Glass]
 ```
 
-## 构建与运行
+## 从 Releases 安装（普通用户，推荐）
+
+1. 到 [Releases 页面](https://github.com/lacemou/dsh-macos-notifier/releases) 下载 `DSHNotch-v0.1.0-macos-arm64.zip`
+2. 解压得到 `DSHNotch.app`，拖入「应用程序」或直接双击运行
+3. 首次打开若提示「无法验证开发者」：**右键（或 Control+点击）App → 打开 → 仍然打开**
+4. 或终端执行一次：`xattr -d com.apple.quarantine "/Applications/DSHNotch.app"`
+
+> ⚠️ 该安装包仅支持 **Apple Silicon（M 系列芯片）**。Intel Mac 用户请用源码自行编译（见下）。
+
+## 构建与运行（开发者）
 
 要求：macOS 13+，Xcode Command Line Tools（`xcode-select --install`）。
 
