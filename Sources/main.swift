@@ -824,7 +824,7 @@ final class MenuBarController: NSObject {
         switch status {
         case .disconnected:
             statusText = EventMonitor.shared.autoReconnectPaused
-                ? "⚪ 未连接 DSH（已暂停自动重连，点「重新连接」恢复）"
+                ? "⚪ 未连接 DSH（已暂停自动重连，点「▶ 启动 DSH」恢复）"
                 : "⚪ 未连接 DSH（自动重连中…）"
         case .idle:
             statusText = "🟢 已连接 · 空闲 · \(EventMonitor.shared.sessionCount) 个会话"
