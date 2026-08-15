@@ -582,19 +582,19 @@ final class DSHLauncher {
         set { UserDefaults.standard.set(newValue, forKey: "launchCommand") }
     }
 
-    /// 是否由本 App 拉起的 DSH（决定菜单是否显示「停止 DSH」）
+    /// 是否由本 App 拉起的 DSH（决定停止时是否需要确认）
     var isOwned: Bool { process != nil }
 
     /// 停止由本 App 拉起的 DSH（SIGTERM 到整个进程组：npx + 其子进程 dsh；2 秒后未退出则 SIGKILL）。
     /// 注意：退出 App 不会自动停止 DSH——DSH 是独立 harness，App 只是"扳机"。
-    func stopDSH() {
+    func stopOwned() {
         guard let p = process, p.isRunning else {
             process = nil
             state = .idle
             onStateChange?(.idle)
             return
         }
-        dlog("停止 DSH（pid \(p.processIdentifier)）")
+        dlog("停止 App 拉起的 DSH（pid \(p.processIdentifier)）")
         kill(-p.processIdentifier, SIGTERM)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             guard let self, let p = self.process, p.isRunning else { return }
@@ -604,6 +604,39 @@ final class DSHLauncher {
         process = nil
         state = .idle
         onStateChange?(.idle)
+    }
+
+    /// 按端口查找监听进程（lsof），用于停止"非 App 拉起"的 DSH 实例。
+    /// 这样即使 App 重启过、丢失了进程引用，或 DSH 是终端启动的，也能停止。
+    func pidOnPort() -> Int32? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        // 注意语法：host:port 用 @ 分隔（-iTCP@host:port），-iTCP:host:port 是非法写法
+        p.arguments = ["-nP", "-iTCP@\(Settings.shared.serverHost):\(Settings.shared.serverPort)", "-sTCP:LISTEN", "-t"]
+        let pipe = Pipe()
+        p.standardOutput = pipe
+        p.standardError = Pipe()
+        do { try p.run() } catch { return nil }
+        p.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let line = String(data: data, encoding: .utf8)?
+            .split(separator: "\n").first?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              let pid = Int32(line) else { return nil }
+        return pid
+    }
+
+    /// 停止指定 PID 的进程（SIGTERM；2 秒后仍存活则 SIGKILL）
+    func killPid(_ pid: Int32) {
+        dlog("停止 DSH 进程 pid=\(pid)")
+        kill(pid, SIGTERM)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard self != nil else { return }
+            if kill(pid, 0) == 0 {   // 进程仍存在
+                dlog("pid \(pid) 未在 2 秒内退出，SIGKILL")
+                kill(pid, SIGKILL)
+            }
+        }
     }
 
     /// 探测 DSH 是否可达（GET / 返回 200）
@@ -803,17 +836,17 @@ final class MenuBarController: NSObject {
                 menu.addItem(hint)
             }
         }
-        // 由本 App 拉起的 DSH 才显示「停止 DSH」；启动过程中不显示（避免"启动/停止"同时出现造成困惑）
-        if DSHLauncher.shared.isOwned && DSHLauncher.shared.state != .starting {
+        // 「停止 DSH」：App 拉起的直接显示；外部实例（已连接但非 App 管理）也显示，点击后先确认再按端口停止
+        let launcher = DSHLauncher.shared
+        if launcher.state != .starting && (launcher.isOwned || status != .disconnected) {
             addActionItem(menu, "⏹ 停止 DSH", #selector(stopDSH), "")
         }
-        // 已连接但不是 App 拉起的 → 存在外部实例（如终端手动启动）：
-        // 解释"为什么点了停止 DSH 它还在跑"——外部实例不归 App 管
+        // 已连接但不是 App 拉起的 → 存在外部实例（如终端手动启动）提示
         if status != .disconnected && !DSHLauncher.shared.isOwned {
-            let ext = NSMenuItem(title: "  ℹ️ 当前 DSH 由外部启动（如终端），App 不负责停止", action: nil, keyEquivalent: "")
+            let ext = NSMenuItem(title: "  ℹ️ 当前 DSH 由外部启动（如终端），停止前会先确认", action: nil, keyEquivalent: "")
             ext.isEnabled = false
             ext.attributedTitle = NSAttributedString(
-                string: "  ℹ️ 当前 DSH 由外部启动（如终端），App 不负责停止",
+                string: "  ℹ️ 当前 DSH 由外部启动（如终端），停止前会先确认",
                 attributes: [
                     .font: NSFont.menuFont(ofSize: 11),
                     .foregroundColor: NSColor.secondaryLabelColor
@@ -935,10 +968,35 @@ final class MenuBarController: NSObject {
         alert.runModal()
     }
 
-    /// 停止由本 App 拉起的 DSH（不影响外部启动的 DSH）
+    /// 停止 DSH：App 拉起的直接停；外部实例先确认再按端口停
     @objc private func stopDSH() {
-        DSHLauncher.shared.stopDSH()
-        rebuildMenu()
+        let launcher = DSHLauncher.shared
+        if launcher.isOwned {
+            launcher.stopOwned()
+            rebuildMenu()
+            return
+        }
+        // 非 App 管理：按端口找进程，先确认（防止误杀）
+        guard let pid = launcher.pidOnPort() else {
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.messageText = "未发现 DSH 进程"
+            alert.informativeText = "端口 \(Settings.shared.serverPort) 上没有监听进程，可能 DSH 已停止。"
+            alert.addButton(withTitle: "好的")
+            alert.runModal()
+            return
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "停止 DSH？"
+        alert.informativeText = "当前 DSH（\(Settings.shared.serverHost):\(Settings.shared.serverPort)，pid \(pid)）不是由本 App 启动的（可能是终端）。确定停止它吗？"
+        alert.addButton(withTitle: "停止")
+        alert.addButton(withTitle: "取消")
+        if alert.runModal() == .alertFirstButtonReturn {
+            launcher.killPid(pid)
+            dlog("已请求停止外部 DSH pid=\(pid)")
+            rebuildMenu()
+        }
     }
 
     @objc private func testNotify() {
