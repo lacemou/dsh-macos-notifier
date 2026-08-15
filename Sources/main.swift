@@ -7,6 +7,7 @@
 
 import AppKit
 import UserNotifications
+import Darwin
 
 // MARK: - 工具函数
 
@@ -575,6 +576,30 @@ final class DSHLauncher {
         set { UserDefaults.standard.set(newValue, forKey: "launchCommand") }
     }
 
+    /// 是否由本 App 拉起的 DSH（决定菜单是否显示「停止 DSH」）
+    var isOwned: Bool { process != nil }
+
+    /// 停止由本 App 拉起的 DSH（SIGTERM 到整个进程组：npx + 其子进程 dsh；2 秒后未退出则 SIGKILL）。
+    /// 注意：退出 App 不会自动停止 DSH——DSH 是独立 harness，App 只是"扳机"。
+    func stopDSH() {
+        guard let p = process, p.isRunning else {
+            process = nil
+            state = .idle
+            onStateChange?(.idle)
+            return
+        }
+        dlog("停止 DSH（pid \(p.processIdentifier)）")
+        kill(-p.processIdentifier, SIGTERM)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self, let p = self.process, p.isRunning else { return }
+            dlog("DSH 未在 2 秒内退出，SIGKILL")
+            kill(-p.processIdentifier, SIGKILL)
+        }
+        process = nil
+        state = .idle
+        onStateChange?(.idle)
+    }
+
     /// 探测 DSH 是否可达（GET / 返回 200）
     func probe(completion: @escaping (Bool) -> Void) {
         guard let url = URL(string: "\(Settings.shared.apiBase)/") else { completion(false); return }
@@ -706,8 +731,8 @@ final class MenuBarController: NSObject {
     static func icon(for status: EventMonitor.Status) -> NSImage? {
         switch status {
         case .disconnected:
-            // 未连接：模板图标（macOS 菜单栏惯例）——深色菜单栏显示白色、浅色菜单栏显示黑色，永远可见
-            let image = NSImage(systemSymbolName: "wifi.slash", accessibilityDescription: nil)
+            // 未连接：空心圆 + 模板色（深色菜单栏显示白色、浅色菜单栏显示黑色），与 README 的 ⚪ 一致
+            let image = NSImage(systemSymbolName: "circle", accessibilityDescription: nil)
             image?.isTemplate = true
             return image
         case .idle:
@@ -770,6 +795,10 @@ final class MenuBarController: NSObject {
                     ])
                 menu.addItem(hint)
             }
+        }
+        // 由本 App 拉起的 DSH 才显示「停止 DSH」（外部启动的不归 App 管）
+        if DSHLauncher.shared.isOwned {
+            addActionItem(menu, "⏹ 停止 DSH", #selector(stopDSH), "")
         }
         addActionItem(menu, "测试通知", #selector(testNotify), "t")
         addActionItem(menu, "🔍 通知诊断", #selector(diagnoseNotifications), "d")
@@ -861,8 +890,7 @@ final class MenuBarController: NSObject {
     // MARK: 动作
 
     /// 启动并打开 DSH：未运行则后台拉起（npx），就绪后打开网页
-    @objc private func launchAndOpen() {
-        DSHLauncher.shared.start { [weak self] ok in
+    @objc private func launchAndOpen() {        DSHLauncher.shared.start { [weak self] ok in
             guard let self else { return }
             if ok {
                 if let url = Settings.shared.webURL {
@@ -885,6 +913,12 @@ final class MenuBarController: NSObject {
         alert.informativeText = "120 秒内服务未就绪。请确认已在终端成功运行过：\nnpx @deepseek-ai/dsh web\n\n启动日志尾部：\n\(DSHLauncher.shared.logTail())"
         alert.addButton(withTitle: "好的")
         alert.runModal()
+    }
+
+    /// 停止由本 App 拉起的 DSH（不影响外部启动的 DSH）
+    @objc private func stopDSH() {
+        DSHLauncher.shared.stopDSH()
+        rebuildMenu()
     }
 
     @objc private func testNotify() {

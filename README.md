@@ -94,9 +94,11 @@ open dist/DSHNotch.app
 
 首次启动会请求「通知权限」：点**允许**后通知横幅走系统通知（可替换重复通知）；不授权也能用（自动降级为 osascript 横幅）。**提示音与权限无关**——由 App 直接播放，见「效果」一节。
 
-**直接启动 DSH（免终端）**：DSH 未运行时，菜单栏图标 →「▶ 启动 DSH」，App 会在后台用 `npx @deepseek-ai/dsh web` 拉起 DSH 服务，就绪后自动打开网页；DSH 已运行时该项显示为「打开 DSH 网页」。启动日志在 `~/Library/Logs/DSHNotch-dsh.log`。
+**直接启动 DSH（免终端）**：DSH 未运行时，菜单栏图标 →「▶ 启动 DSH」，App 会在后台用 `npx @deepseek-ai/dsh web` 拉起 DSH 服务，就绪后自动打开网页；DSH 已运行时该项显示为「打开 DSH 网页」。由 App 拉起的 DSH，菜单会多出「⏹ 停止 DSH」可随时停止（外部启动的不显示）。启动日志在 `~/Library/Logs/DSHNotch-dsh.log`。
 
 > ⚠️ 前提：请先在终端成功运行过一次 `npx @deepseek-ai/dsh web`（初始化 npx 缓存与配置），之后才能用本功能免终端启动。
+
+> ℹ️ 生命周期：**退出 App 不会停止 DSH**——DSH 是独立服务，App 只是"扳机"；需要停止时用菜单里的「⏹ 停止 DSH」。
 
 **退出**：点击菜单栏图标 →「退出 DSH Notch」。
 
@@ -105,7 +107,7 @@ open dist/DSHNotch.app
 ## 快速上手（首次使用）
 
 1. **先在终端跑通 DSH**（只需一次）：`npx @deepseek-ai/dsh web`，初始化 npx 缓存与配置
-2. 按上面「构建与运行」编译并启动 App —— 菜单栏出现白色 `wifi.slash` 图标（DSH 未运行），连上后变绿
+2. 按上面「构建与运行」编译并启动 App —— 菜单栏出现白色空心圆（⚪）图标（DSH 未运行），连上后变绿
 3. 点菜单栏图标 → **测试通知**，验证横幅 + 提示音链路
 4. 在 **通知设置** 里按需调整各类通知开关
 

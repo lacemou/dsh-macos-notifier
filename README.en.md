@@ -74,7 +74,7 @@ On first launch the app asks for notification permission: **Allow** uses the sys
    npx @deepseek-ai/dsh web
    ```
    This initializes the npx cache and DSH config.
-2. Build and launch the app (above). A white `wifi.slash` icon appears in the menu bar while DSH is not running; it turns green when connected.
+2. Build and launch the app (above). A white hollow-circle (⚪) icon appears in the menu bar while DSH is not running; it turns green when connected.
 3. Click the menu bar icon → **测试通知** to verify the notification link (banner + sound).
 4. Open 通知设置 and adjust which events should notify you.
 
@@ -82,8 +82,10 @@ On first launch the app asks for notification permission: **Allow** uses the sys
 
 - DSH not running → menu shows **▶ 启动 DSH**: the app launches `npx @deepseek-ai/dsh web` in the background, waits until the service is ready, then opens the web UI.
 - DSH running → the same item shows **打开 DSH 网页** (opens the page directly; it never starts a duplicate instance).
+- When the app started DSH itself, a **⏹ 停止 DSH** item appears so you can stop it explicitly (not shown for externally started DSH).
 - Launch logs: `~/Library/Logs/DSHNotch-dsh.log`.
 - The launch command is configurable in the server dialog (default `npx @deepseek-ai/dsh web`).
+- **Lifecycle**: quitting the app does **not** stop DSH — DSH is an independent service; the app is only a trigger. Use ⏹ 停止 DSH to stop it.
 
 ## Menu reference
 
