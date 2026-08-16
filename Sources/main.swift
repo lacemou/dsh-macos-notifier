@@ -241,6 +241,16 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
 
     func resumeAutoReconnect() {
         autoReconnectPaused = false
+        backoff = 2
+        connect()
+    }
+
+    /// DSH 已确认就绪时立即重连（重置退避、马上连）：
+    /// 避免"启动 DSH 成功但 EventMonitor 还要等最长 30 秒的自动重试"造成要连两次的错觉
+    func kickReconnect() {
+        guard !autoReconnectPaused else { return }
+        if connected { return }
+        backoff = 2
         connect()
     }
 
@@ -971,6 +981,8 @@ final class MenuBarController: NSObject {
         DSHLauncher.shared.start { [weak self] ok in
             guard let self else { return }
             if ok {
+                // DSH 就绪的瞬间立刻让监听器重连（否则要等最长 30 秒的自动重试）
+                EventMonitor.shared.kickReconnect()
                 if let url = Settings.shared.webURL {
                     NSWorkspace.shared.open(url)
                 } else {
