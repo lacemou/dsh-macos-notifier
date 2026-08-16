@@ -59,7 +59,9 @@ final class Settings {
     var webURL: URL? { URL(string: apiBase) }
 
     var notifyToolCall: Bool {
-        get { d.object(forKey: "notifyToolCall") as? Bool ?? true }
+        // 默认关闭：工具调用是高频事件（agent 运行时几秒一条），全部通知会造成通知中心堆积、
+        // 甚至触发 Electron 类应用的挂起；关键事件（完成/出错/批准/提问）默认开启即可。
+        get { d.object(forKey: "notifyToolCall") as? Bool ?? false }
         set { d.set(newValue, forKey: "notifyToolCall") }
     }
     var toolCallMinInterval: Double {
@@ -421,7 +423,8 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
             let shouldNotify = last == nil || now.timeIntervalSince(last!) >= Settings.shared.toolCallMinInterval
             if shouldNotify {
                 lastToolNotify[sessionId] = now
-                notifyIf(Settings.shared.notifyToolCall, id: "tool-\(sessionId)-\(turn)-\(step)",
+                // 固定 identifier：新通知替换旧通知，通知中心最多保留一条工具动态，避免堆积
+                notifyIf(Settings.shared.notifyToolCall, id: "tool-activity",
                          title: "🛠️ DSH 正在执行动作",
                          body: "\(name) · 第\(turn)轮/step\(step)：\(truncate(toolSummary(name: name, args: args), 90))",
                          sound: false)

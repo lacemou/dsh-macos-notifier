@@ -30,7 +30,7 @@ A native **macOS menu-bar companion** for [DeepSeek Harness](https://github.com/
 | Agent crashed | `💥 DSH Agent 错误` |
 
 - Every category can be toggled individually from the menu.
-- Tool-call notifications are throttled (max 1 per session per 5 s, default) and are always silent to avoid noise.
+- Tool-call notifications are **off by default** (high-frequency; avoid piling up in Notification Center; only the latest is kept) and always silent. Enable it in 通知设置 if you want them.
 - Completion/error/approval/question/job/agent-error notifications play a sound **directly from the app** (`NSSound`), independent of macOS's notification sound channel — it rings even if "Play user interface sound effects" is off. Master sound switch: menu → 通知设置 → 🔊 播放提示音.
 
 ## How it works
@@ -102,7 +102,7 @@ On first launch the app asks for notification permission: **Allow** uses the sys
 
 | Switch | Default | Effect |
 | --- | --- | --- |
-| 🛠️ 执行动作时通知（工具调用） | on | Notify on tool calls (throttled 5 s) |
+| 🛠️ 执行动作时通知（工具调用） | **off** | High-frequency; off by default to avoid notification pile-up (only the latest is kept); 5 s throttle when enabled |
 | ✅ 任务完成时通知 | on | Notify when a turn completes |
 | ❌ 出错 / 中止 / 超限时通知 | on | Notify on errors, aborts, token-limit |
 | 🔔 需要批准时通知 | on | Notify when approval is requested |
