@@ -226,8 +226,10 @@ final class EventMonitor: NSObject, URLSessionWebSocketDelegate {
         start()
     }
 
-    /// 手动「停止 DSH」后暂停自动重连：尊重用户的停止意图，不再空转重试
-    private(set) var autoReconnectPaused = false
+    /// 手动「停止 DSH」后暂停自动重连：尊重用户的停止意图，不再空转重试。
+    /// 默认 true：App 启动时只尝试连接一次（探测 DSH 是否在跑），不自动重连；
+    /// 点「▶ 启动 DSH」或「重新连接」后才开启自动重连。
+    private(set) var autoReconnectPaused = true
 
     func pauseAutoReconnect() {
         autoReconnectPaused = true
@@ -834,7 +836,7 @@ final class MenuBarController: NSObject {
         switch status {
         case .disconnected:
             statusText = EventMonitor.shared.autoReconnectPaused
-                ? "⚪ 未连接 DSH（已暂停自动重连，点「▶ 启动 DSH」恢复）"
+                ? "⚪ 未连接 DSH（点「▶ 启动 DSH」或「重新连接」连接）"
                 : "⚪ 未连接 DSH（自动重连中…）"
         case .idle:
             statusText = "🟢 已连接 · 空闲 · \(EventMonitor.shared.sessionCount) 个会话"

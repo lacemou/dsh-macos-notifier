@@ -86,6 +86,7 @@ On first launch the app asks for notification permission: **Allow** uses the sys
 - Launch logs: `~/Library/Logs/DSHNotch-dsh.log`.
 - The launch command is configurable in the server dialog (default `npx @deepseek-ai/dsh web`).
 - **Lifecycle**: quitting the app does **not** stop DSH — DSH is an independent service; the app is only a trigger. Use ⏹ 停止 DSH to stop it.
+- **Auto-reconnect**: on launch the app probes once and does **not** auto-reconnect by default; auto-reconnect turns on after ▶ 启动 DSH or 重新连接, and pauses after ⏹ 停止 DSH.
 
 ## Menu reference
 
